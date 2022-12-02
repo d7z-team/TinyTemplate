@@ -12,7 +12,7 @@
 //! the context structure and insert it into the rendered string:
 //!
 //! ```text
-//! Hello, {name}, how are you?
+//! Hello, {{ var name }}, how are you?
 //! ```
 //!
 //! Optionally, a value formatter may be provided. One formatter, "unescaped", is provided by
@@ -22,7 +22,7 @@
 //! registered as "percent_formatter" with the value of the "percentage" field:
 //!
 //! ```text
-//! Give it {percentage | percent_formatter}!
+//! Give it {{ var percentage | percent_formatter }}!
 //! ```
 //!
 //! The value may be a dotted path through a hierarchy of context objects. This will look up the
@@ -30,7 +30,7 @@
 //! object.
 //!
 //! ```text
-//! And hello to {friend.name} as well!
+//! And hello to {{ var friend.name  }} as well!
 //! ```
 //!
 //! Additionally, you may use the `@root` keyword to refer to the root object of your context.
@@ -70,13 +70,13 @@
 //! ### Loops
 //!
 //! TinyTemplate supports iterating over the values of arrays. Only arrays are supported. Loops
-//! are denoted by "{{ for value_name in value.path }}...{{ endfor }}". The section of the template between
+//! are denoted by "{{ for value_name in value.path }}...{{ end-for }}". The section of the template between
 //! the two tags will be executed once for each value in the array denoted by "value.path".
 //!
 //! ```text
 //! Hello to {{ for name in guests }}
-//! {name}
-//! {{ endfor }}
+//! {{ var name }}
+//! {{ end-for }}
 //! ```
 //!
 //! If the iteration value chosen in the "for" tag is the same as that of a regular context value,
@@ -85,8 +85,8 @@
 //!
 //! ```text
 //! {{ for person in guests }}
-//! Hello to {person}{{ for person in person.friends }} and your friend {person}{{ endfor }}
-//! {{ endfor }}
+//! Hello to {person}{{ for person in person.friends }} and your friend {person}{{ end-for }}
+//! {{ end-for }}
 //! ```
 //!
 //! There are three special values which are available within a loop:
@@ -98,7 +98,7 @@
 //! ```text
 //! Hello to {{ for name in guests -}}
 //! {{ var @index }}. {{ var name}},
-//! {{- endfor }}
+//! {{- end-for }}
 //! ```
 //!
 //!
@@ -112,14 +112,14 @@
 //! Templates can use with blocks to partially shadows the outer context, the same way that
 //! for-loops do. These are formed like so:
 //!
-//! "{{ with path.to.value as name }}..{{ endwith }}""
+//! "{{ with path.to.value as name }}..{{ end-with }}""
 //!
 //! For example:
 //!
 //! ```text
 //! {{ with person.spouse as s }}
 //! Hello {{ var s.name }}!
-//! {{ endwith }}
+//! {{ end-with }}
 //! ```
 //!
 //! This looks up "person.spouse" and adds that to the context as "s" within the block. Only the
