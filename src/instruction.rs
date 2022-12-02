@@ -15,6 +15,7 @@ pub(crate) enum PathStep<'template> {
     Name(&'template str),
     Index(&'template str, usize),
 }
+
 impl<'template> Deref for PathStep<'template> {
     type Target = str;
 
@@ -40,10 +41,10 @@ pub(crate) enum Instruction<'template> {
 
     /// Look up the value for the given path and render it into the output buffer using the default
     /// formatter
-    Value(Path<'template>),
+    Value(Vec<Path<'template>>),
 
     /// Look up the value for the given path and pass it to the formatter with the given name
-    FormattedValue(Path<'template>, &'template str),
+    FormattedValue(Vec<Path<'template>>, &'template str),
 
     /// Look up the value at the given path and jump to the given instruction index if that value
     /// is truthy (if the boolean is true) or falsy (if the boolean is false)

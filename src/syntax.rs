@@ -97,7 +97,7 @@
 //!
 //! ```text
 //! Hello to {{ for name in guests -}}
-//! { @index }. {name},
+//! {{ var @index }}. {{ var name}},
 //! {{- endfor }}
 //! ```
 //!
@@ -118,7 +118,7 @@
 //!
 //! ```text
 //! {{ with person.spouse as s }}
-//! Hello { s.name }!
+//! Hello {{ var s.name }}!
 //! {{ endwith }}
 //! ```
 //!
@@ -132,7 +132,7 @@
 //! ends with a "-", the leading whitespace of the following text will be skipped.
 //!
 //! ```text
-//! Hello { friend.name -}
+//! Hello {{ var friend.name -}
 //! , how are you?
 //!
 //! {{- if status.good }} I am fine.               {{- endif }}
@@ -162,23 +162,9 @@
 //! ```text
 //! Hello
 //!
-//! {#- This is a comment #} world!
+//! {{#- This is a comment #}} world!
 //! ```
 //!
 //! This will print "Hello world!".
-//!
-//! ### Escaping Curly Braces
-//!
-//! If your template contains opening curly-braces (`{`), they must be escaped using a leading `\`
-//! character. For example:
-//!
-//! ```text
-//! h2 \{
-//!     font-size: {fontsize};
-//! }
-//! ```
-//!
-//! If using a string literal in rust source code, the `\` itself must be escaped, producing `\\{`.
-//!
 
 // There's nothing here, this module is solely for documentation.

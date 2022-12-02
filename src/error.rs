@@ -1,10 +1,12 @@
 //! Module containing the error type returned by TinyTemplate if an error occurs.
 
-use instruction::{path_to_str, PathSlice};
-use serde_json::Error as SerdeJsonError;
-use serde_json::Value;
 use std::error::Error as StdError;
 use std::fmt;
+
+use serde_json::Error as SerdeJsonError;
+use serde_json::Value;
+
+use instruction::{path_to_str, PathSlice};
 
 /// Enum representing the potential errors that TinyTemplate can encounter.
 #[derive(Debug)]
@@ -121,7 +123,7 @@ impl StdError for Error {
     }
 }
 
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub(crate) fn lookup_error(source: &str, step: &str, path: PathSlice, current: &Value) -> Error {
     let avail_str = if let Value::Object(object_map) = current {

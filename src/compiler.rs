@@ -112,7 +112,7 @@ impl<'template> TemplateCompiler<'template> {
                             ));
                         }
                     }
-                    "for" => {
+                    "for" | "foreach" => {
                         let (path, name) = self.parse_for(rest)?;
                         self.instructions
                             .push(Instruction::PushIterationContext(path, name));
@@ -288,15 +288,38 @@ impl<'template> TemplateCompiler<'template> {
     }
 
 
-    fn consume_value(&mut self, tag: &'template str) -> Result<(Path<'template>, Option<&'template str>)> {
-        if let Some(index) = tag.find('|') {
+    fn consume_value(&mut self, tag: &'template str) -> Result<(Vec<Path<'template>>, Option<&'template str>)> {
+        let mut result: (Vec<Path<'template>>, Option<&'template str>) = (Vec::new(), None);
+        let vars_str = if let Some(index) = tag.find('|') {
             let (path_str, name_str) = tag.split_at(index);
             let name = name_str[1..].trim();
-            let path = self.parse_path(path_str.trim())?;
-            Ok((path, Some(name)))
+            result.1 = Some(name);
+            path_str.trim()
         } else {
-            Ok((self.parse_path(tag)?, None))
+            tag.trim()
+        };
+        if vars_str.contains("??") {
+            return Err(self.parse_error(
+                vars_str,
+                format!(
+                    "syntax error,symbol '??' not supported."
+                ),
+            ));
         }
+        let vars: Vec<&str> = vars_str.split("?").collect();
+        if *vars.first().unwrap() == "?" || *vars.last().unwrap() == "?" {
+            return Err(self.parse_error(
+                vars_str,
+                format!(
+                    "syntax error, symbol '?' not be in the first or last place."
+                ),
+            ));
+        }
+        for item in vars {
+            result.0.push(self.parse_path(item.trim())?)
+        }
+
+        Ok(result)
     }
 
     /// Right-trim whitespace from the last text block we parsed.
@@ -437,7 +460,7 @@ mod test {
         let text = "{{ var foobar }}";
         let instructions = compile(text).unwrap();
         assert_eq!(1, instructions.len());
-        assert_eq!(&Value(vec![PathStep::Name("foobar")]), &instructions[0]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("foobar")]]), &instructions[0]);
     }
 
     #[test]
@@ -446,7 +469,7 @@ mod test {
         let instructions = compile(text).unwrap();
         assert_eq!(1, instructions.len());
         assert_eq!(
-            &FormattedValue(vec![PathStep::Name("foobar")], "my_formatter"),
+            &FormattedValue(vec![vec![PathStep::Name("foobar")]], "my_formatter"),
             &instructions[0]
         );
     }
@@ -458,7 +481,7 @@ mod test {
         println!("{:?}", instructions);
         assert_eq!(1, instructions.len());
         assert_eq!(
-            &Value(vec![PathStep::Name("foo"), PathStep::Name("bar")]),
+            &Value(vec![vec![PathStep::Name("foo"), PathStep::Name("bar")]]),
             &instructions[0]
         );
     }
@@ -470,9 +493,11 @@ mod test {
         assert_eq!(1, instructions.len());
         assert_eq!(
             &Value(vec![
-                PathStep::Name("foo"),
-                PathStep::Index("0", 0),
-                PathStep::Name("bar"),
+                vec![
+                    PathStep::Name("foo"),
+                    PathStep::Index("0", 0),
+                    PathStep::Name("bar"),
+                ]
             ]),
             &instructions[0]
         );
@@ -484,7 +509,7 @@ mod test {
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(&Literal("Hello "), &instructions[0]);
-        assert_eq!(&Value(vec![PathStep::Name("name")]), &instructions[1]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("name")]]), &instructions[1]);
         assert_eq!(&Literal(", how are you?"), &instructions[2]);
     }
 
@@ -549,18 +574,18 @@ mod test {
             &instructions[0]
         );
         assert_eq!(&Iterate(4), &instructions[1]);
-        assert_eq!(&Value(vec![PathStep::Name("foo")]), &instructions[2]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("foo")]]), &instructions[2]);
         assert_eq!(&Goto(1), &instructions[3]);
         assert_eq!(&PopContext, &instructions[4]);
     }
 
     #[test]
     fn test_strip_whitespace_value() {
-        let text = "Hello,     {{- env name -}}   , how are you?";
+        let text = "Hello,     {{- env name  -}}   , how are you?";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(&Literal("Hello,"), &instructions[0]);
-        assert_eq!(&Value(vec![PathStep::Name("name")]), &instructions[1]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("name")]]), &instructions[1]);
         assert_eq!(&Literal(", how are you?"), &instructions[2]);
     }
 
@@ -575,7 +600,7 @@ mod test {
             &instructions[1]
         );
         assert_eq!(&Literal(""), &instructions[2]);
-        assert_eq!(&Value(vec![PathStep::Name("name")]), &instructions[3]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("name")]]), &instructions[3]);
         assert_eq!(&Literal(""), &instructions[4]);
         assert_eq!(&Literal(", how are you?"), &instructions[5]);
     }
@@ -603,8 +628,8 @@ mod test {
         let text = "{{var value -}}{{ var value}} Hello";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
-        assert_eq!(&Value(vec![PathStep::Name("value")]), &instructions[0]);
-        assert_eq!(&Value(vec![PathStep::Name("value")]), &instructions[1]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("value")]]), &instructions[0]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("value")]]), &instructions[1]);
         assert_eq!(&Literal(" Hello"), &instructions[2]);
     }
 
@@ -629,7 +654,7 @@ mod test {
         assert_eq!(4, instructions.len());
         assert_eq!(&Literal("body "), &instructions[0]);
         assert_eq!(&Literal("{ \nfont-size: "), &instructions[1]);
-        assert_eq!(&Value(vec![PathStep::Name("fontsize")]), &instructions[2]);
+        assert_eq!(&Value(vec![vec![PathStep::Name("fontsize")]]), &instructions[2]);
         assert_eq!(&Literal(" \n}"), &instructions[3]);
     }
 

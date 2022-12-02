@@ -9,7 +9,7 @@ use serde_json::Value;
 use compiler::TemplateCompiler;
 use error::*;
 use error::Error::*;
-use instruction::{Instruction, PathSlice, PathStep};
+use instruction::{Instruction, Path, PathSlice, PathStep};
 use ValueFormatter;
 
 /// Enum defining the different kinds of records on the context stack.
@@ -59,6 +59,19 @@ impl<'render, 'template> RenderContext<'render, 'template> {
             }
         }
         panic!("Attempted to do a lookup with an empty context stack. That shouldn't be possible.")
+    }
+    fn lookup_many(&self, path_group: &Vec<Path>) -> Result<&'render Value> {
+        for item in path_group {
+            if let Ok(value) = self.lookup(item) {
+                return Ok(value);
+            }
+        }
+        Err(GenericError {
+            msg: format!(
+                "Failed to find values '{:?}'",
+                path_group,
+            ).to_string()
+        })
     }
 
     /// Look up a path within a given value object and return the resulting value (if found) or
@@ -172,7 +185,7 @@ impl<'template> Template<'template> {
                     program_counter += 1;
                 }
                 Instruction::Value(path) => {
-                    let first = path.first().unwrap();
+                    let first = path.first().unwrap().first().unwrap();
                     if first.starts_with('@') {
                         // Currently we just hard-code the special @-keywords and have special
                         // lookup functions to use them because there are lifetime complexities with
@@ -196,14 +209,14 @@ impl<'template> Template<'template> {
                             _ => panic!(), // This should have been caught by the parser.
                         }
                     } else {
-                        let value_to_render = render_context.lookup(path)?;
+                        let value_to_render = render_context.lookup_many(path)?;
                         default_formatter(value_to_render, output)?;
                     }
                     program_counter += 1;
                 }
                 Instruction::FormattedValue(path, name) => {
                     // The @ keywords aren't supported for formatted values. Should they be?
-                    let value_to_render = render_context.lookup(path)?;
+                    let value_to_render = render_context.lookup_many(path)?;
                     match formatter_registry.get(name) {
                         Some(formatter) => {
                             let formatter_result = formatter(value_to_render, output);
@@ -432,7 +445,7 @@ mod test {
 
     #[test]
     fn test_value() {
-        let template = compile("{{ var number }}");
+        let template = compile("{{ var number ? item }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
