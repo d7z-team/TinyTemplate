@@ -36,6 +36,7 @@ pub(crate) struct TemplateCompiler<'template> {
     /// encounter.
     trim_next: bool,
 }
+
 impl<'template> TemplateCompiler<'template> {
     /// Create a new template compiler to parse and compile the given template.
     pub fn new(text: &'template str) -> TemplateCompiler<'template> {
@@ -63,8 +64,8 @@ impl<'template> TemplateCompiler<'template> {
                 if comment.ends_with('-') {
                     self.trim_next_whitespace();
                 }
-            // Block tag. Block tags are wrapped in {{ }} and always have one word at the start
-            // to identify which kind of tag it is. Depending on the tag type there may be more.
+                // Block tag. Block tags are wrapped in {{ }} and always have one word at the start
+                // to identify which kind of tag it is. Depending on the tag type there may be more.
             } else if self.remaining_text.starts_with("{{") {
                 self.trim_next = false;
 
@@ -107,7 +108,7 @@ impl<'template> TemplateCompiler<'template> {
                         } else {
                             return Err(self.parse_error(
                                 discriminant,
-                                "Found a closing endwith that doesn't match with a preceeding with.".to_string()
+                                "Found a closing endwith that doesn't match with a preceeding with.".to_string(),
                             ));
                         }
                     }
@@ -130,6 +131,14 @@ impl<'template> TemplateCompiler<'template> {
                         let (name, path) = self.parse_call(rest)?;
                         self.instructions.push(Instruction::Call(name, path));
                     }
+                    "var" => {
+                        let (path, name) = self.consume_value_custom_tag(rest)?;
+                        let instruction = match name {
+                            Some(name) => Instruction::FormattedValue(path, name),
+                            None => Instruction::Value(path),
+                        };
+                        self.instructions.push(instruction);
+                    }
                     _ => {
                         return Err(self.parse_error(
                             discriminant,
@@ -137,9 +146,9 @@ impl<'template> TemplateCompiler<'template> {
                         ));
                     }
                 }
-            // Values, of the form { dotted.path.to.value.in.context }
-            // Note that it is not (currently) possible to escape curly braces in the templates to
-            // prevent them from being interpreted as values.
+                // Values, of the form { dotted.path.to.value.in.context }
+                // Note that it is not (currently) possible to escape curly braces in the templates to
+                // prevent them from being interpreted as values.
             } else if self.remaining_text.starts_with('{') {
                 self.trim_next = false;
 
@@ -149,7 +158,7 @@ impl<'template> TemplateCompiler<'template> {
                     None => Instruction::Value(path),
                 };
                 self.instructions.push(instruction);
-            // All other text - just consume characters until we see a {
+                // All other text - just consume characters until we see a {
             } else {
                 let mut escaped = false;
                 loop {
@@ -171,7 +180,7 @@ impl<'template> TemplateCompiler<'template> {
                     if escaped && self.remaining_text.is_empty() {
                         return Err(self.parse_error(
                             text,
-                            "Found an escape that doesn't escape any character.".to_string()
+                            "Found an escape that doesn't escape any character.".to_string(),
                         ));
                     }
                 }
@@ -304,7 +313,9 @@ impl<'template> TemplateCompiler<'template> {
             tag = tag[0..tag.len() - 1].trim();
             self.trim_next_whitespace();
         }
-
+        self.consume_value_custom_tag(tag)
+    }
+    fn consume_value_custom_tag(&mut self, tag: &'template str) -> Result<(Path<'template>, Option<&'template str>)> {
         if let Some(index) = tag.find('|') {
             let (path_str, name_str) = tag.split_at(index);
             let name = name_str[1..].trim();
@@ -486,7 +497,7 @@ mod test {
             &Value(vec![
                 PathStep::Name("foo"),
                 PathStep::Index("0", 0),
-                PathStep::Name("bar")
+                PathStep::Name("bar"),
             ]),
             &instructions[0]
         );
@@ -630,7 +641,7 @@ mod test {
         assert_eq!(
             &Call(
                 "my_macro",
-                vec![PathStep::Name("foo"), PathStep::Name("bar")]
+                vec![PathStep::Name("foo"), PathStep::Name("bar")],
             ),
             &instructions[0]
         );

@@ -427,7 +427,7 @@ mod test {
 
     #[test]
     fn test_value() {
-        let template = compile("{ number }");
+        let template = compile("{{ var number }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
