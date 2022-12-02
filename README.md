@@ -20,22 +20,23 @@
 TinyTemplate is a small, minimalistic text templating system with limited dependencies.
 
 ## Table of Contents
+
 - [Table of Contents](#table-of-contents)
-  - [Goals](#goals)
-  - [Why TinyTemplate?](#why-tinytemplate)
-  - [Quickstart](#quickstart)
-  - [Compatibility Policy](#compatibility-policy)
-  - [Contributing](#contributing)
-  - [Maintenance](#maintenance)
-  - [License](#license)
+    - [Goals](#goals)
+    - [Why TinyTemplate?](#why-tinytemplate)
+    - [Quickstart](#quickstart)
+    - [Compatibility Policy](#compatibility-policy)
+    - [Contributing](#contributing)
+    - [Maintenance](#maintenance)
+    - [License](#license)
 
 ### Goals
 
- The primary design goals are:
+The primary design goals are:
 
- - __Small__: TinyTemplate deliberately does not support many features of more powerful template engines.
- - __Simple__: TinyTemplate presents a minimal but well-documented user-facing API.
- - __Lightweight__: TinyTemplate has minimal required dependencies.
+- __Small__: TinyTemplate deliberately does not support many features of more powerful template engines.
+- __Simple__: TinyTemplate presents a minimal but well-documented user-facing API.
+- __Lightweight__: TinyTemplate has minimal required dependencies.
 
 Non-goals include:
 
@@ -49,7 +50,7 @@ needs for Criterion.rs. Some had large dependency trees to support features that
 required adding a build script to convert templates into code at runtime, in search of extreme
 performance that I didn't need. Some had elaborate macro-based DSL's to generate HTML, where I just
 wanted plain text with some markup. Some expect the templates to be provided in a directory of text
-files, but I wanted the template to be included in the binary. I just wanted something small and 
+files, but I wanted the template to be included in the binary. I just wanted something small and
 minimal with good documentation but there was nothing like that out there so I wrote my own.
 
 TinyTemplate is well-suited to generating HTML reports and similar text files. It could be used for
@@ -62,7 +63,7 @@ First, add TinyTemplate and serde-derive to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-tinytemplate = "1.1"
+tiny_template = { git = "https://github.com/d7z-team/TinyTemplate" }
 serde = { version = "1.0", features = ["derive"] }
 ```
 
@@ -71,7 +72,7 @@ Then add this code to "src.rs":
 ```rust
 use serde::Serialize;
 
-use tinytemplate::TinyTemplate;
+use tiny_template::TinyTemplate;
 use std::error::Error;
 
 #[derive(Serialize)]
@@ -79,7 +80,7 @@ struct Context {
     name: String,
 }
 
-static TEMPLATE : &'static str = "Hello {name}!";
+static TEMPLATE: &'static str = "Hello {{ var name }}!";
 
 pub fn main() -> Result<(), Box<dyn Error>> {
     let mut tt = TinyTemplate::new();

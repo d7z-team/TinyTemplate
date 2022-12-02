@@ -1,5 +1,5 @@
 [package]
-name = "tinytemplate_double_brackets"
+name = "tiny_template"
 version = "1.2.1"
 authors = ["Brook Heisler <brookheisler@gmail.com>"]
 

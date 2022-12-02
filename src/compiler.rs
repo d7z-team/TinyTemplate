@@ -1,15 +1,15 @@
 #![allow(deprecated)]
 
+use error::{Error, get_offset, Result};
 /// The compiler module houses the code which parses and compiles templates. TinyTemplate implements
 /// a simple bytecode interpreter (see the [instruction] module for more details) to render templates.
 /// The [`TemplateCompiler`](struct.TemplateCompiler.html) struct is responsible for parsing the
 /// template strings and generating the appropriate bytecode instructions.
 use error::Error::*;
-use error::{get_offset, Error, Result};
 use instruction::{Instruction, Path, PathStep};
 
 /// The end point of a branch or goto instruction is not known.
-const UNKNOWN: usize = ::std::usize::MAX;
+const UNKNOWN: usize = std::usize::MAX;
 
 /// The compiler keeps a stack of the open blocks so that it can ensure that blocks are closed in
 /// the right order. The Block type is a simple enumeration of the kinds of blocks that could be
@@ -53,11 +53,11 @@ impl<'template> TemplateCompiler<'template> {
     pub fn compile(mut self) -> Result<Vec<Instruction<'template>>> {
         while !self.remaining_text.is_empty() {
             // Comment, denoted by {# comment text #}
-            if self.remaining_text.starts_with("{#") {
+            if self.remaining_text.starts_with("{{#") {
                 self.trim_next = false;
 
-                let tag = self.consume_tag("#}")?;
-                let comment = tag[2..(tag.len() - 2)].trim();
+                let tag = self.consume_tag("#}}")?;
+                let comment = tag[3..(tag.len() - 3)].trim();
                 if comment.starts_with('-') {
                     self.trim_last_whitespace();
                 }
@@ -101,7 +101,7 @@ impl<'template> TemplateCompiler<'template> {
                         self.instructions.push(instruction);
                         self.block_stack.push((discriminant, Block::With));
                     }
-                    "endwith" => {
+                    "endwith" | "end-with" => {
                         self.expect_empty(rest)?;
                         if let Some((_, Block::With)) = self.block_stack.pop() {
                             self.instructions.push(Instruction::PopContext)
@@ -120,7 +120,7 @@ impl<'template> TemplateCompiler<'template> {
                             .push((discriminant, Block::For(self.instructions.len())));
                         self.instructions.push(Instruction::Iterate(UNKNOWN));
                     }
-                    "endfor" => {
+                    "endfor" | "end-for" => {
                         self.expect_empty(rest)?;
                         let num_instructions = self.instructions.len() + 1;
                         let goto_target = self.close_for(num_instructions, discriminant)?;
@@ -131,8 +131,8 @@ impl<'template> TemplateCompiler<'template> {
                         let (name, path) = self.parse_call(rest)?;
                         self.instructions.push(Instruction::Call(name, path));
                     }
-                    "var" => {
-                        let (path, name) = self.consume_value_custom_tag(rest)?;
+                    "var" | "env" => {
+                        let (path, name) = self.consume_value(rest)?;
                         let instruction = match name {
                             Some(name) => Instruction::FormattedValue(path, name),
                             None => Instruction::Value(path),
@@ -146,21 +146,8 @@ impl<'template> TemplateCompiler<'template> {
                         ));
                     }
                 }
-                // Values, of the form { dotted.path.to.value.in.context }
-                // Note that it is not (currently) possible to escape curly braces in the templates to
-                // prevent them from being interpreted as values.
-            } else if self.remaining_text.starts_with('{') {
-                self.trim_next = false;
-
-                let (path, name) = self.consume_value()?;
-                let instruction = match name {
-                    Some(name) => Instruction::FormattedValue(path, name),
-                    None => Instruction::Value(path),
-                };
-                self.instructions.push(instruction);
-                // All other text - just consume characters until we see a {
             } else {
-                let mut escaped = false;
+                let mut escaped = true;
                 loop {
                     let mut text = self.consume_text(escaped);
                     if self.trim_next {
@@ -300,22 +287,8 @@ impl<'template> TemplateCompiler<'template> {
         text
     }
 
-    /// Advance the cursor to the end of the value tag and return the value's path and optional
-    /// formatter name.
-    fn consume_value(&mut self) -> Result<(Path<'template>, Option<&'template str>)> {
-        let tag = self.consume_tag("}")?;
-        let mut tag = tag[1..(tag.len() - 1)].trim();
-        if tag.starts_with('-') {
-            tag = tag[1..].trim();
-            self.trim_last_whitespace();
-        }
-        if tag.ends_with('-') {
-            tag = tag[0..tag.len() - 1].trim();
-            self.trim_next_whitespace();
-        }
-        self.consume_value_custom_tag(tag)
-    }
-    fn consume_value_custom_tag(&mut self, tag: &'template str) -> Result<(Path<'template>, Option<&'template str>)> {
+
+    fn consume_value(&mut self, tag: &'template str) -> Result<(Path<'template>, Option<&'template str>)> {
         if let Some(index) = tag.find('|') {
             let (path_str, name_str) = tag.split_at(index);
             let name = name_str[1..].trim();
@@ -443,8 +416,9 @@ impl<'template> TemplateCompiler<'template> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use instruction::Instruction::*;
+
+    use super::*;
 
     fn compile(text: &'static str) -> Result<Vec<Instruction<'static>>> {
         TemplateCompiler::new(text).compile()
@@ -460,7 +434,7 @@ mod test {
 
     #[test]
     fn test_compile_value() {
-        let text = "{ foobar }";
+        let text = "{{ var foobar }}";
         let instructions = compile(text).unwrap();
         assert_eq!(1, instructions.len());
         assert_eq!(&Value(vec![PathStep::Name("foobar")]), &instructions[0]);
@@ -468,7 +442,7 @@ mod test {
 
     #[test]
     fn test_compile_value_with_formatter() {
-        let text = "{ foobar | my_formatter }";
+        let text = "{{ var foobar | my_formatter }}";
         let instructions = compile(text).unwrap();
         assert_eq!(1, instructions.len());
         assert_eq!(
@@ -479,8 +453,9 @@ mod test {
 
     #[test]
     fn test_dotted_path() {
-        let text = "{ foo.bar }";
+        let text = "{{ var foo.bar }}";
         let instructions = compile(text).unwrap();
+        println!("{:?}", instructions);
         assert_eq!(1, instructions.len());
         assert_eq!(
             &Value(vec![PathStep::Name("foo"), PathStep::Name("bar")]),
@@ -490,7 +465,7 @@ mod test {
 
     #[test]
     fn test_indexed_path() {
-        let text = "{ foo.0.bar }";
+        let text = "{{  var foo.0.bar }}";
         let instructions = compile(text).unwrap();
         assert_eq!(1, instructions.len());
         assert_eq!(
@@ -505,7 +480,7 @@ mod test {
 
     #[test]
     fn test_mixture() {
-        let text = "Hello { name }, how are you?";
+        let text = "Hello {{ var name }}, how are you?";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(&Literal("Hello "), &instructions[0]);
@@ -553,7 +528,7 @@ mod test {
 
     #[test]
     fn test_with() {
-        let text = "{{ with foo as bar }}Hello!{{ endwith }}";
+        let text = "{{ with foo as bar }}Hello!{{ end-with }}";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(
@@ -566,7 +541,7 @@ mod test {
 
     #[test]
     fn test_foreach() {
-        let text = "{{ for foo in bar.baz }}{ foo }{{ endfor }}";
+        let text = "{{ for foo in bar.baz }}{{ var foo }}{{ end-for }}";
         let instructions = compile(text).unwrap();
         assert_eq!(5, instructions.len());
         assert_eq!(
@@ -581,7 +556,7 @@ mod test {
 
     #[test]
     fn test_strip_whitespace_value() {
-        let text = "Hello,     {- name -}   , how are you?";
+        let text = "Hello,     {{- env name -}}   , how are you?";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(&Literal("Hello,"), &instructions[0]);
@@ -591,7 +566,7 @@ mod test {
 
     #[test]
     fn test_strip_whitespace_block() {
-        let text = "Hello,     {{- if name -}}    {name}    {{- endif -}}   , how are you?";
+        let text = "Hello,     {{- if name -}}    {{ var name}}    {{- endif -}}   , how are you?";
         let instructions = compile(text).unwrap();
         assert_eq!(6, instructions.len());
         assert_eq!(&Literal("Hello,"), &instructions[0]);
@@ -607,7 +582,7 @@ mod test {
 
     #[test]
     fn test_comment() {
-        let text = "Hello, {# foo bar baz #} there!";
+        let text = "Hello, {{# foo bar baz #}} there!";
         let instructions = compile(text).unwrap();
         assert_eq!(2, instructions.len());
         assert_eq!(&Literal("Hello, "), &instructions[0]);
@@ -616,7 +591,7 @@ mod test {
 
     #[test]
     fn test_strip_whitespace_comment() {
-        let text = "Hello, \t\n    {#- foo bar baz -#} \t  there!";
+        let text = "Hello, \t\n    {{#- foo bar baz -#}} \t  there!";
         let instructions = compile(text).unwrap();
         assert_eq!(2, instructions.len());
         assert_eq!(&Literal("Hello,"), &instructions[0]);
@@ -625,7 +600,7 @@ mod test {
 
     #[test]
     fn test_strip_whitespace_followed_by_another_tag() {
-        let text = "{value -}{value} Hello";
+        let text = "{{var value -}}{{ var value}} Hello";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(&Value(vec![PathStep::Name("value")]), &instructions[0]);
@@ -649,7 +624,7 @@ mod test {
 
     #[test]
     fn test_curly_brace_escaping() {
-        let text = "body \\{ \nfont-size: {fontsize} \n}";
+        let text = "body { \nfont-size: {{ var fontsize}} \n}";
         let instructions = compile(text).unwrap();
         assert_eq!(4, instructions.len());
         assert_eq!(&Literal("body "), &instructions[0]);
@@ -661,15 +636,15 @@ mod test {
     #[test]
     fn test_unclosed_tags() {
         let tags = vec![
-            "{",
-            "{ foo.bar",
-            "{ foo.bar\n }",
+            "{{",
+            "{{ var foo.bar",
+            "{{ var foo.bar\n }}",
             "{{",
             "{{ if foo.bar",
             "{{ if foo.bar \n}}",
-            "{#",
-            "{# if foo.bar",
-            "{# if foo.bar \n#}",
+            "{{#",
+            "{{# if foo.bar",
+            "{{# if foo.bar \n#}}",
         ];
         for tag in tags {
             compile(tag).unwrap_err();
@@ -678,13 +653,13 @@ mod test {
 
     #[test]
     fn test_mismatched_blocks() {
-        let text = "{{ if foo }}{{ with bar }}{{ endif }} {{ endwith }}";
+        let text = "{{ if foo }}{{ with bar }}{{ endif }} {{ end-with }}";
         compile(text).unwrap_err();
     }
 
     #[test]
     fn test_disallows_invalid_keywords() {
-        let text = "{ @foo }";
+        let text = "{{ var @foo }}";
         compile(text).unwrap_err();
     }
 
@@ -729,7 +704,7 @@ mod test {
 
     #[test]
     fn test_mismatched_closing_tag() {
-        let text = "{#}";
+        let text = "{{#}}";
         compile(text).unwrap_err();
     }
 }

@@ -1,13 +1,15 @@
 //! This module implements the bytecode interpreter that actually renders the templates.
 
-use compiler::TemplateCompiler;
-use error::Error::*;
-use error::*;
-use instruction::{Instruction, PathSlice, PathStep};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::slice;
+
+use serde_json::Value;
+
+use compiler::TemplateCompiler;
+use error::*;
+use error::Error::*;
+use instruction::{Instruction, PathSlice, PathStep};
 use ValueFormatter;
 
 /// Enum defining the different kinds of records on the context stack.
@@ -36,6 +38,7 @@ struct RenderContext<'render, 'template> {
     original_text: &'template str,
     context_stack: Vec<ContextElement<'render, 'template>>,
 }
+
 impl<'render, 'template> RenderContext<'render, 'template> {
     /// Look up the given path in the context stack and return the value (if found) or an error (if
     /// not)
@@ -115,6 +118,7 @@ pub(crate) struct Template<'template> {
     instructions: Vec<Instruction<'template>>,
     template_len: usize,
 }
+
 impl<'template> Template<'template> {
     /// Create a Template from the given template string.
     pub fn compile(text: &'template str) -> Result<Template> {
@@ -253,7 +257,7 @@ impl<'template> Template<'template> {
                     let context_value = match first {
                         PathStep::Name("@root") => render_context.lookup_root()?,
                         PathStep::Name(other) if other.starts_with('@') => {
-                            return Err(not_iterable_error(self.original_text, path))
+                            return Err(not_iterable_error(self.original_text, path));
                         }
                         _ => render_context.lookup(path)?,
                     };
@@ -262,7 +266,7 @@ impl<'template> Template<'template> {
                             render_context.context_stack.push(ContextElement::Iteration(
                                 name,
                                 &Value::Null,
-                                ::std::usize::MAX,
+                                std::usize::MAX,
                                 arr.len(),
                                 arr.iter(),
                             ))
@@ -345,8 +349,9 @@ impl<'template> Template<'template> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use compiler::TemplateCompiler;
+
+    use super::*;
 
     fn compile(text: &'static str) -> Template<'static> {
         Template {
@@ -382,12 +387,12 @@ mod test {
             nested: NestedContext { value: 10 },
             escapes: "1:< 2:> 3:& 4:' 5:\"",
         };
-        ::serde_json::to_value(&ctx).unwrap()
+        serde_json::to_value(&ctx).unwrap()
     }
 
     fn other_templates() -> HashMap<&'static str, Template<'static>> {
         let mut map = HashMap::new();
-        map.insert("my_macro", compile("{value}"));
+        map.insert("my_macro", compile("{{ var value }}"));
         map
     }
 
@@ -444,7 +449,7 @@ mod test {
 
     #[test]
     fn test_path() {
-        let template = compile("The number of the day is { nested.value }.");
+        let template = compile("The number of the day is {{ var nested.value }}.");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -616,7 +621,7 @@ mod test {
 
     #[test]
     fn test_with() {
-        let template = compile("{{ with nested as n }}{ n.value } { number }{{endwith}}");
+        let template = compile("{{ with nested as n }}{{ var n.value }} {{ var number }}{{endwith}}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -633,7 +638,7 @@ mod test {
 
     #[test]
     fn test_for_loop() {
-        let template = compile("{{ for a in array }}{ a }{{ endfor }}");
+        let template = compile("{{ for a in array }}{{ var a }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -650,7 +655,7 @@ mod test {
 
     #[test]
     fn test_for_loop_index() {
-        let template = compile("{{ for a in array }}{ @index }{{ endfor }}");
+        let template = compile("{{ for a in array }}{{ var @index }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -668,7 +673,7 @@ mod test {
     #[test]
     fn test_for_loop_first() {
         let template =
-            compile("{{ for a in array }}{{if @first }}{ @index }{{ endif }}{{ endfor }}");
+            compile("{{ for a in array }}{{if @first }}{{ var @index }}{{ endif }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -686,7 +691,7 @@ mod test {
     #[test]
     fn test_for_loop_last() {
         let template =
-            compile("{{ for a in array }}{{ if @last}}{ @index }{{ endif }}{{ endfor }}");
+            compile("{{ for a in array }}{{ if @last}}{{ var @index }}{{ endif }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -703,7 +708,7 @@ mod test {
 
     #[test]
     fn test_whitespace_stripping_value() {
-        let template = compile("1  \n\t   {- number -}  \n   1");
+        let template = compile("1  \n\t   {{- var number -}}  \n   1");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -737,7 +742,7 @@ mod test {
 
     #[test]
     fn test_formatter() {
-        let template = compile("{ nested.value | my_formatter }");
+        let template = compile("{{ var  nested.value | my_formatter }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -754,7 +759,7 @@ mod test {
 
     #[test]
     fn test_unknown() {
-        let template = compile("{ foobar }");
+        let template = compile("{{ var foobar }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -770,7 +775,7 @@ mod test {
 
     #[test]
     fn test_escaping() {
-        let template = compile("{ escapes }");
+        let template = compile("{{ var escapes }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -787,7 +792,7 @@ mod test {
 
     #[test]
     fn test_unescaped() {
-        let template = compile("{ escapes | unescaped }");
+        let template = compile("{{ var escapes | unescaped }}");
         let context = context();
         let template_registry = other_templates();
         let mut formatter_registry = formatters();
@@ -805,9 +810,9 @@ mod test {
 
     #[test]
     fn test_root_print() {
-        let template = compile("{ @root }");
+        let template = compile("{{ var @root }}");
         let context = "Hello World!";
-        let context = ::serde_json::to_value(&context).unwrap();
+        let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
         let formatter_registry = formatters();
         let string = template
@@ -825,7 +830,7 @@ mod test {
     fn test_root_branch() {
         let template = compile("{{ if @root }}Hello World!{{ endif }}");
         let context = true;
-        let context = ::serde_json::to_value(&context).unwrap();
+        let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
         let formatter_registry = formatters();
         let string = template
@@ -841,9 +846,9 @@ mod test {
 
     #[test]
     fn test_root_iterate() {
-        let template = compile("{{ for a in @root }}{ a }{{ endfor }}");
+        let template = compile("{{ for a in @root }}{{ var a }}{{ endfor }}");
         let context = vec!["foo", "bar"];
-        let context = ::serde_json::to_value(&context).unwrap();
+        let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
         let formatter_registry = formatters();
         let string = template
@@ -861,7 +866,7 @@ mod test {
     fn test_number_truthiness_zero() {
         let template = compile("{{ if @root }}truthy{{else}}not truthy{{ endif }}");
         let context = 0;
-        let context = ::serde_json::to_value(&context).unwrap();
+        let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
         let formatter_registry = formatters();
         let string = template
@@ -879,7 +884,7 @@ mod test {
     fn test_number_truthiness_one() {
         let template = compile("{{ if @root }}truthy{{else}}not truthy{{ endif }}");
         let context = 1;
-        let context = ::serde_json::to_value(&context).unwrap();
+        let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
         let formatter_registry = formatters();
         let string = template
@@ -900,9 +905,9 @@ mod test {
             foo: (usize, usize),
         }
 
-        let template = compile("{ foo.1 }{ foo.0 }");
+        let template = compile("{{ var foo.1 }}{{ var foo.0 }}");
         let context = Context { foo: (123, 456) };
-        let context = ::serde_json::to_value(&context).unwrap();
+        let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
         let formatter_registry = formatters();
         let string = template
@@ -923,12 +928,12 @@ mod test {
             foo: HashMap<&'static str, usize>,
         }
 
-        let template = compile("{ foo.1 }{ foo.0 }");
+        let template = compile("{{ var foo.1 }}{{ var foo.0 }}");
         let mut foo = HashMap::new();
         foo.insert("0", 123);
         foo.insert("1", 456);
         let context = Context { foo };
-        let context = ::serde_json::to_value(&context).unwrap();
+        let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
         let formatter_registry = formatters();
         let string = template

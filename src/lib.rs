@@ -10,10 +10,10 @@
 //! The most important features are as follows (see the [syntax](syntax/index.html) module for full
 //! details on the template syntax):
 //!
-//! * Rendering values - `{ myvalue }`
+//! * Rendering values - `{{ var myvalue }}`
 //! * Conditionals - `{{ if foo }}Foo is true{{ else }}Foo is false{{ endif }}`
 //! * Loops - `{{ for value in row }}{value}{{ endfor }}`
-//! * Customizable value formatters `{ value | my_formatter }`
+//! * Customizable value formatters `{{ var value | my_formatter }}`
 //! * Macros `{{ call my_template with foo }}`
 //!
 //! ## Restrictions
@@ -31,9 +31,9 @@
 //! ```
 //! #[macro_use]
 //! extern crate serde_derive;
-//! extern crate tinytemplate_double_brackets;
+//! extern crate tiny_template;
 //!
-//! use tinytemplate_double_brackets::TinyTemplate;
+//! use tiny_template::TinyTemplate;
 //! use std::error::Error;
 //!
 //! #[derive(Serialize)]
@@ -41,7 +41,7 @@
 //!     name: String,
 //! }
 //!
-//! static TEMPLATE : &'static str = "Hello {name}!";
+//! static TEMPLATE : &'static str = "Hello {{ var name }}!";
 //!
 //! pub fn main() -> Result<(), Box<Error>> {
 //!     let mut tt = TinyTemplate::new();
@@ -63,24 +63,25 @@
 //!
 
 extern crate serde;
-extern crate serde_json;
-
 #[cfg(test)]
 #[cfg_attr(test, macro_use)]
 extern crate serde_derive;
+extern crate serde_json;
+
+use std::collections::HashMap;
+use std::fmt::Write;
+
+use serde::Serialize;
+use serde_json::Value;
+
+use error::*;
+use template::Template;
 
 mod compiler;
 pub mod error;
 mod instruction;
 pub mod syntax;
 mod template;
-
-use error::*;
-use serde::Serialize;
-use serde_json::Value;
-use std::collections::HashMap;
-use std::fmt::Write;
-use template::Template;
 
 /// Type alias for closures which can be used as value formatters.
 pub type ValueFormatter = dyn Fn(&Value, &mut String) -> Result<()>;
@@ -242,7 +243,7 @@ mod test {
         name: String,
     }
 
-    static TEMPLATE: &'static str = "Hello {name}!";
+    static TEMPLATE: &'static str = "Hello {{ var name }}!";
 
     #[test]
     pub fn test_set_default_formatter() {
