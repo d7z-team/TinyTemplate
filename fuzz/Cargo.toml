@@ -20,7 +20,7 @@ features = ["derive"]
 version = "1"
 features = ["derive"]
 
-[dependencies.tinytemplate]
+[dependencies.tinytemplate_double_brackets]
 path = ".."
 
 # Prevent this from interfering with workspaces

@@ -31,9 +31,9 @@
 //! ```
 //! #[macro_use]
 //! extern crate serde_derive;
-//! extern crate tinytemplate;
+//! extern crate tinytemplate_double_brackets;
 //!
-//! use tinytemplate::TinyTemplate;
+//! use tinytemplate_double_brackets::TinyTemplate;
 //! use std::error::Error;
 //!
 //! #[derive(Serialize)]
