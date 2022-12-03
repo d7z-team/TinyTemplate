@@ -172,6 +172,7 @@ pub struct TinyTemplate<'template> {
     formatters: HashMap<&'template str, Box<ValueFormatter>>,
     default_formatter: &'template ValueFormatter,
 }
+
 impl<'template> TinyTemplate<'template> {
     /// Create a new TinyTemplate registry. The returned registry contains no templates, and has
     /// [`format_unescaped`](fn.format_unescaped.html) registered as a formatter named "unescaped".
@@ -194,16 +195,16 @@ impl<'template> TinyTemplate<'template> {
 
     /// Changes the default formatter from [`format`](fn.format.html) to `formatter`. Usefull in combination with [`format_unescaped`](fn.format_unescaped.html) to deactivate HTML-escaping
     pub fn set_default_formatter<F>(&mut self, formatter: &'template F)
-    where
-        F: 'static + Fn(&Value, &mut String) -> Result<()>,
+        where
+            F: 'static + Fn(&Value, &mut String) -> Result<()>,
     {
         self.default_formatter = formatter;
     }
 
     /// Register the given formatter function under the given name.
     pub fn add_formatter<F>(&mut self, name: &'template str, formatter: F)
-    where
-        F: 'static + Fn(&Value, &mut String) -> Result<()>,
+        where
+            F: 'static + Fn(&Value, &mut String) -> Result<()>,
     {
         self.formatters.insert(name, Box::new(formatter));
     }
@@ -211,8 +212,8 @@ impl<'template> TinyTemplate<'template> {
     /// Render the template with the given name using the given context object. The context
     /// object must implement `serde::Serialize` as it will be converted to `serde_json::Value`.
     pub fn render<C>(&self, template: &str, context: &C) -> Result<String>
-    where
-        C: Serialize,
+        where
+            C: Serialize,
     {
         let value = serde_json::to_value(context)?;
         match self.templates.get(template) {
@@ -228,6 +229,7 @@ impl<'template> TinyTemplate<'template> {
         }
     }
 }
+
 impl<'template> Default for TinyTemplate<'template> {
     fn default() -> TinyTemplate<'template> {
         TinyTemplate::new()
@@ -236,6 +238,8 @@ impl<'template> Default for TinyTemplate<'template> {
 
 #[cfg(test)]
 mod test {
+    use serde_json::Map;
+
     use super::*;
 
     #[derive(Serialize)]
@@ -257,5 +261,16 @@ mod test {
 
         let rendered = tt.render("hello", &context).unwrap();
         assert_eq!(rendered, "Hello <World>!")
+    }
+
+    #[test]
+    pub fn mini_example() {
+        let mut template = TinyTemplate::new();
+        template.add_template("hello", "hello {{ context.key -}} !").unwrap();
+        let mut map = Map::new();
+        let mut child_map = Map::new();
+        child_map.insert("key".to_owned(), Value::from("world".to_owned()));
+        map.insert("context".to_string(), Value::from(child_map));
+        assert_eq!(template.render("hello", &Value::from(map)).unwrap(), "hello world!")
     }
 }

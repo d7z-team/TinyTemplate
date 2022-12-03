@@ -279,7 +279,7 @@ impl<'template> Template<'template> {
                             render_context.context_stack.push(ContextElement::Iteration(
                                 name,
                                 &Value::Null,
-                                std::usize::MAX,
+                                usize::MAX,
                                 arr.len(),
                                 arr.iter(),
                             ))
@@ -317,15 +317,15 @@ impl<'template> Template<'template> {
                 Instruction::Call(template_name, path) => {
                     let context_value = render_context.lookup(path)?;
                     match template_registry.get(template_name) {
-                        Some(templ) => {
-                            let called_templ_result = templ.render_into(
+                        Some(tmpl) => {
+                            let called_tmpl_result = tmpl.render_into(
                                 context_value,
                                 template_registry,
                                 formatter_registry,
                                 default_formatter,
                                 output,
                             );
-                            if let Err(err) = called_templ_result {
+                            if let Err(err) = called_tmpl_result {
                                 return Err(called_template_error(
                                     self.original_text,
                                     template_name,
@@ -445,7 +445,7 @@ mod test {
 
     #[test]
     fn test_value() {
-        let template = compile("{{ number ? item }}");
+        let template = compile("{{ item ? number }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
