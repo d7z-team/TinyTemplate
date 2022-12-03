@@ -12,7 +12,7 @@
 //! the context structure and insert it into the rendered string:
 //!
 //! ```text
-//! Hello, {{ var name }}, how are you?
+//! Hello, {{ name }}, how are you?
 //! ```
 //!
 //! Optionally, a value formatter may be provided. One formatter, "unescaped", is provided by
@@ -22,7 +22,7 @@
 //! registered as "percent_formatter" with the value of the "percentage" field:
 //!
 //! ```text
-//! Give it {{ var percentage | percent_formatter }}!
+//! Give it {{ percentage | percent_formatter }}!
 //! ```
 //!
 //! The value may be a dotted path through a hierarchy of context objects. This will look up the
@@ -30,7 +30,7 @@
 //! object.
 //!
 //! ```text
-//! And hello to {{ var friend.name  }} as well!
+//! And hello to {{ friend.name  }} as well!
 //! ```
 //!
 //! Additionally, you may use the `@root` keyword to refer to the root object of your context.
@@ -75,7 +75,7 @@
 //!
 //! ```text
 //! Hello to {{ for name in guests }}
-//! {{ var name }}
+//! {{ name }}
 //! {{ end-for }}
 //! ```
 //!
@@ -97,7 +97,7 @@
 //!
 //! ```text
 //! Hello to {{ for name in guests -}}
-//! {{ var @index }}. {{ var name}},
+//! {{ @index }}. {{ name}},
 //! {{- end-for }}
 //! ```
 //!
@@ -118,7 +118,7 @@
 //!
 //! ```text
 //! {{ with person.spouse as s }}
-//! Hello {{ var s.name }}!
+//! Hello {{ s.name }}!
 //! {{ end-with }}
 //! ```
 //!
@@ -132,7 +132,7 @@
 //! ends with a "-", the leading whitespace of the following text will be skipped.
 //!
 //! ```text
-//! Hello {{ var friend.name -}
+//! Hello {{ friend.name -}
 //! , how are you?
 //!
 //! {{- if status.good }} I am fine.               {{- endif }}

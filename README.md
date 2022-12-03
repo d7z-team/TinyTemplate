@@ -32,9 +32,7 @@ TinyTemplate is a small, minimalistic text templating system with limited depend
 
 ### 说明
 
-相对于原项目，此 fork 剔除了 `{ value }` 填充变量的方式，更改为 `{{ var value }}`，同时，支持使用 `{{ var not_found ? value }}` 的方式动态填充有效变量。
-
-**注意**：部分功能未覆盖详尽的单元测试，请勿在生产环境中使用。
+相对于原项目，此 fork 剔除了 `{ value }` 填充变量的方式，更改为 `{{ value }}`，同时，支持使用 `{{ not_found ? value }}` 的方式动态填充有效变量,具体细节可参考提交日志。
 
 ### Goals
 
@@ -86,7 +84,7 @@ struct Context {
     name: String,
 }
 
-static TEMPLATE: &'static str = "Hello {{ var name }}!";
+static TEMPLATE: &'static str = "Hello {{ name }}!";
 
 pub fn main() -> Result<(), Box<dyn Error>> {
     let mut tt = TinyTemplate::new();

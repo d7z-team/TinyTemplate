@@ -69,7 +69,7 @@ impl<'template> TemplateCompiler<'template> {
             } else if self.remaining_text.starts_with("{{") {
                 self.trim_next = false;
 
-                let (discriminant, rest) = self.consume_block()?;
+                let (discriminant, rest, native) = self.consume_block()?;
                 match discriminant {
                     "if" => {
                         let (path, negated) = if rest.starts_with("not") {
@@ -140,10 +140,18 @@ impl<'template> TemplateCompiler<'template> {
                         self.instructions.push(instruction);
                     }
                     _ => {
-                        return Err(self.parse_error(
-                            discriminant,
-                            format!("Unknown block type '{}'", discriminant),
-                        ));
+                        if native.starts_with(".") {
+                            return Err(self.parse_error(
+                                discriminant,
+                                format!("Unknown block type '{}'", discriminant),
+                            ));
+                        }
+                        let (path, name) = self.consume_value(native)?;
+                        let instruction = match name {
+                            Some(name) => Instruction::FormattedValue(path, name),
+                            None => Instruction::Value(path),
+                        };
+                        self.instructions.push(instruction);
                     }
                 }
             } else {
@@ -336,7 +344,7 @@ impl<'template> TemplateCompiler<'template> {
 
     /// Advance the cursor to the end of the current block tag and return the discriminant substring
     /// and the rest of the text in the tag. Also handles trimming whitespace where needed.
-    fn consume_block(&mut self) -> Result<(&'template str, &'template str)> {
+    fn consume_block(&mut self) -> Result<(&'template str, &'template str, &'template str)> {
         let tag = self.consume_tag("}}")?;
         let mut block = tag[2..(tag.len() - 2)].trim();
         if block.starts_with('-') {
@@ -349,7 +357,7 @@ impl<'template> TemplateCompiler<'template> {
         }
         let discriminant = block.split_whitespace().next().unwrap_or(block);
         let rest = block[discriminant.len()..].trim();
-        Ok((discriminant, rest))
+        Ok((discriminant, rest, block))
     }
 
     /// Advance the cursor to after the given expected_close string and return the text in between
@@ -457,7 +465,7 @@ mod test {
 
     #[test]
     fn test_compile_value() {
-        let text = "{{ var foobar }}";
+        let text = "{{ foobar }}";
         let instructions = compile(text).unwrap();
         assert_eq!(1, instructions.len());
         assert_eq!(&Value(vec![vec![PathStep::Name("foobar")]]), &instructions[0]);
@@ -465,7 +473,7 @@ mod test {
 
     #[test]
     fn test_compile_value_with_formatter() {
-        let text = "{{ var foobar | my_formatter }}";
+        let text = "{{ foobar | my_formatter }}";
         let instructions = compile(text).unwrap();
         assert_eq!(1, instructions.len());
         assert_eq!(
@@ -476,7 +484,7 @@ mod test {
 
     #[test]
     fn test_dotted_path() {
-        let text = "{{ var foo.bar }}";
+        let text = "{{ foo.bar }}";
         let instructions = compile(text).unwrap();
         println!("{:?}", instructions);
         assert_eq!(1, instructions.len());
@@ -505,7 +513,7 @@ mod test {
 
     #[test]
     fn test_mixture() {
-        let text = "Hello {{ var name }}, how are you?";
+        let text = "Hello {{ name }}, how are you?";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(&Literal("Hello "), &instructions[0]);
@@ -566,7 +574,7 @@ mod test {
 
     #[test]
     fn test_foreach() {
-        let text = "{{ for foo in bar.baz }}{{ var foo }}{{ end-for }}";
+        let text = "{{ for foo in bar.baz }}{{ foo }}{{ end-for }}";
         let instructions = compile(text).unwrap();
         assert_eq!(5, instructions.len());
         assert_eq!(
@@ -591,7 +599,7 @@ mod test {
 
     #[test]
     fn test_strip_whitespace_block() {
-        let text = "Hello,     {{- if name -}}    {{ var name}}    {{- endif -}}   , how are you?";
+        let text = "Hello,     {{- if name -}}    {{ name}}    {{- endif -}}   , how are you?";
         let instructions = compile(text).unwrap();
         assert_eq!(6, instructions.len());
         assert_eq!(&Literal("Hello,"), &instructions[0]);
@@ -625,7 +633,7 @@ mod test {
 
     #[test]
     fn test_strip_whitespace_followed_by_another_tag() {
-        let text = "{{var value -}}{{ var value}} Hello";
+        let text = "{{var value -}}{{ value}} Hello";
         let instructions = compile(text).unwrap();
         assert_eq!(3, instructions.len());
         assert_eq!(&Value(vec![vec![PathStep::Name("value")]]), &instructions[0]);
@@ -649,7 +657,7 @@ mod test {
 
     #[test]
     fn test_curly_brace_escaping() {
-        let text = "body { \nfont-size: {{ var fontsize}} \n}";
+        let text = "body { \nfont-size: {{ fontsize}} \n}";
         let instructions = compile(text).unwrap();
         assert_eq!(4, instructions.len());
         assert_eq!(&Literal("body "), &instructions[0]);
@@ -662,8 +670,8 @@ mod test {
     fn test_unclosed_tags() {
         let tags = vec![
             "{{",
-            "{{ var foo.bar",
-            "{{ var foo.bar\n }}",
+            "{{ foo.bar",
+            "{{ foo.bar\n }}",
             "{{",
             "{{ if foo.bar",
             "{{ if foo.bar \n}}",
@@ -684,26 +692,22 @@ mod test {
 
     #[test]
     fn test_disallows_invalid_keywords() {
-        let text = "{{ var @foo }}";
+        let text = "{{ @foo }}";
         compile(text).unwrap_err();
     }
 
     #[test]
     fn test_diallows_unknown_block_type() {
         let text = "{{ foobar }}";
-        compile(text).unwrap_err();
+        assert_eq!(&Value(vec![vec![PathStep::Name("foobar")]]), compile(text).unwrap().get(0).unwrap());
     }
 
     #[test]
     fn test_parse_error_line_column_num() {
         let text = "\n\n\n{{ foobar }}";
-        let err = compile(text).unwrap_err();
-        if let ParseError { line, column, .. } = err {
-            assert_eq!(4, line);
-            assert_eq!(3, column);
-        } else {
-            panic!("Should have returned a parse error");
-        }
+        let result = compile(text).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(vec![Literal("\n\n\n"), Value(vec![vec![PathStep::Name("foobar")]])], result);
     }
 
     #[test]

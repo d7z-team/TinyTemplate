@@ -405,7 +405,7 @@ mod test {
 
     fn other_templates() -> HashMap<&'static str, Template<'static>> {
         let mut map = HashMap::new();
-        map.insert("my_macro", compile("{{ var value }}"));
+        map.insert("my_macro", compile("{{ value }}"));
         map
     }
 
@@ -445,7 +445,7 @@ mod test {
 
     #[test]
     fn test_value() {
-        let template = compile("{{ var number ? item }}");
+        let template = compile("{{ number ? item }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -462,7 +462,7 @@ mod test {
 
     #[test]
     fn test_path() {
-        let template = compile("The number of the day is {{ var nested.value }}.");
+        let template = compile("The number of the day is {{ nested.value }}.");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -634,7 +634,7 @@ mod test {
 
     #[test]
     fn test_with() {
-        let template = compile("{{ with nested as n }}{{ var n.value }} {{ var number }}{{endwith}}");
+        let template = compile("{{ with nested as n }}{{ n.value }} {{ number }}{{endwith}}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -651,7 +651,7 @@ mod test {
 
     #[test]
     fn test_for_loop() {
-        let template = compile("{{ for a in array }}{{ var a }}{{ endfor }}");
+        let template = compile("{{ for a in array }}{{ a }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -668,7 +668,7 @@ mod test {
 
     #[test]
     fn test_for_loop_index() {
-        let template = compile("{{ for a in array }}{{ var @index }}{{ endfor }}");
+        let template = compile("{{ for a in array }}{{ @index }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -686,7 +686,7 @@ mod test {
     #[test]
     fn test_for_loop_first() {
         let template =
-            compile("{{ for a in array }}{{if @first }}{{ var @index }}{{ endif }}{{ endfor }}");
+            compile("{{ for a in array }}{{if @first }}{{ @index }}{{ endif }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -704,7 +704,7 @@ mod test {
     #[test]
     fn test_for_loop_last() {
         let template =
-            compile("{{ for a in array }}{{ if @last}}{{ var @index }}{{ endif }}{{ endfor }}");
+            compile("{{ for a in array }}{{ if @last}}{{ @index }}{{ endif }}{{ endfor }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -755,7 +755,7 @@ mod test {
 
     #[test]
     fn test_formatter() {
-        let template = compile("{{ var  nested.value | my_formatter }}");
+        let template = compile("{{  nested.value | my_formatter }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -772,7 +772,7 @@ mod test {
 
     #[test]
     fn test_unknown() {
-        let template = compile("{{ var foobar }}");
+        let template = compile("{{ foobar }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -788,7 +788,7 @@ mod test {
 
     #[test]
     fn test_escaping() {
-        let template = compile("{{ var escapes }}");
+        let template = compile("{{ escapes }}");
         let context = context();
         let template_registry = other_templates();
         let formatter_registry = formatters();
@@ -805,7 +805,7 @@ mod test {
 
     #[test]
     fn test_unescaped() {
-        let template = compile("{{ var escapes | unescaped }}");
+        let template = compile("{{ escapes | unescaped }}");
         let context = context();
         let template_registry = other_templates();
         let mut formatter_registry = formatters();
@@ -823,7 +823,7 @@ mod test {
 
     #[test]
     fn test_root_print() {
-        let template = compile("{{ var @root }}");
+        let template = compile("{{ @root }}");
         let context = "Hello World!";
         let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
@@ -859,7 +859,7 @@ mod test {
 
     #[test]
     fn test_root_iterate() {
-        let template = compile("{{ for a in @root }}{{ var a }}{{ endfor }}");
+        let template = compile("{{ for a in @root }}{{ a }}{{ endfor }}");
         let context = vec!["foo", "bar"];
         let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
@@ -918,7 +918,7 @@ mod test {
             foo: (usize, usize),
         }
 
-        let template = compile("{{ var foo.1 }}{{ var foo.0 }}");
+        let template = compile("{{ foo.1 }}{{ foo.0 }}");
         let context = Context { foo: (123, 456) };
         let context = serde_json::to_value(&context).unwrap();
         let template_registry = other_templates();
@@ -941,7 +941,7 @@ mod test {
             foo: HashMap<&'static str, usize>,
         }
 
-        let template = compile("{{ var foo.1 }}{{ var foo.0 }}");
+        let template = compile("{{ foo.1 }}{{ foo.0 }}");
         let mut foo = HashMap::new();
         foo.insert("0", 123);
         foo.insert("1", 456);

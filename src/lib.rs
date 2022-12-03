@@ -10,10 +10,10 @@
 //! The most important features are as follows (see the [syntax](syntax/index.html) module for full
 //! details on the template syntax):
 //!
-//! * Rendering values - `{{ var myvalue }}`
+//! * Rendering values - `{{ myvalue }}`
 //! * Conditionals - `{{ if foo }}Foo is true{{ else }}Foo is false{{ endif }}`
 //! * Loops - `{{ for value in row }}{value}{{ endfor }}`
-//! * Customizable value formatters `{{ var value | my_formatter }}`
+//! * Customizable value formatters `{{ value | my_formatter }}`
 //! * Macros `{{ call my_template with foo }}`
 //!
 //! ## Restrictions
@@ -41,7 +41,7 @@
 //!     name: String,
 //! }
 //!
-//! static TEMPLATE : &'static str = "Hello {{ var name }}!";
+//! static TEMPLATE : &'static str = "Hello {{ name }}!";
 //!
 //! pub fn main() -> Result<(), Box<Error>> {
 //!     let mut tt = TinyTemplate::new();
@@ -243,7 +243,7 @@ mod test {
         name: String,
     }
 
-    static TEMPLATE: &'static str = "Hello {{ var name }}!";
+    static TEMPLATE: &'static str = "Hello {{ name }}!";
 
     #[test]
     pub fn test_set_default_formatter() {
